@@ -1,13 +1,9 @@
 # Model files (too large for git)
+# Folder models/ tetap ada, tapi isinya di-ignore
 *.gguf
 models/*.gguf
 models/**/*.gguf
-
-# Piper TTS models
-piper/*.onnx
-piper/*.onnx.json
-piper/**/*.onnx
-piper/**/*.onnx.json
+!models/.gitkeep
 
 # Python
 __pycache__/
