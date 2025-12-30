@@ -1,0 +1,29 @@
+FROM python:3.11-slim
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    portaudio19-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install openWakeWord and dependencies
+# Use numpy < 2.0 for compatibility with tflite_runtime
+WORKDIR /app
+RUN pip install --no-cache-dir \
+    "numpy<2.0" \
+    openwakeword \
+    websockets \
+    pyaudio
+
+# Download default models
+RUN python -c "import openwakeword; openwakeword.utils.download_models()" && \
+    python -c "import openwakeword; import os; print('Models downloaded to:', os.path.expanduser('~/.local/share/openwakeword'))"
+
+# Copy WebSocket server script
+COPY wakeword_server.py /app/server.py
+RUN chmod +x /app/server.py
+
+EXPOSE 8765
+
+CMD ["python3", "/app/server.py"]
+

@@ -1,0 +1,58 @@
+services:
+  chat-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./models:/models
+    # ⚠️ PENTING: Download model .gguf terlebih dahulu sebelum build dan run!
+    # 
+    # Instruksi:
+    # 1. Download model dari link di README.md (contoh: Qwen2.5-0.5B atau Qwen2.5-1.5B)
+    # 2. Simpan file ke folder ./models/
+    # 3. Pastikan nama file sesuai dengan yang ada di command di bawah
+    # 4. Atau edit command di bawah sesuai nama file model Anda
+    #
+    # Model default: qwen2.5-0.5b-instruct-q4_k_m.gguf (sangat ringan, ~350MB)
+    # Alternatif: qwen2.5-1.5b-instruct-q4_k_m.gguf (lebih baik, ~1GB)
+    # 
+    # Link download: Lihat README.md bagian "Download Model AI"
+    command: ["./bin/server", "-m", "/models/qwen2.5-0.5b-instruct-q4_k_m.gguf", "-c", "512", "--host", "0.0.0.0", "--port", "8080"]
+    working_dir: /app/build
+    restart: always
+
+  piper-tts:
+    build:
+      context: .
+      dockerfile: Dockerfile.piper
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./models:/app/models
+      - ./piper:/app/models  # Mount piper folder if you have models there
+    restart: always
+
+  wake-word:
+    build:
+      context: .
+      dockerfile: Dockerfile.wakeword
+    ports:
+      - "8765:8765"
+    restart: always
+    # Note: Requires microphone access, may need device passthrough
+    # devices:
+    #   - /dev/snd:/dev/snd
+
+  web-server:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./html:/usr/share/nginx/html
+    restart: always
+    depends_on:
+      - chat-engine
+      - piper-tts
+      - wake-word

@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voice Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: rgba(30, 30, 46, 0.8);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #ffffff;
+            font-size: 2.5em;
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
+
+        .status {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 1.2em;
+            color: #a0a0a0;
+            min-height: 30px;
+            transition: color 0.3s ease;
+        }
+
+        .status.active {
+            color: #4ade80;
+        }
+
+        .status.listening {
+            color: #fbbf24;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .status.thinking {
+            color: #60a5fa;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .status.speaking {
+            color: #a78bfa;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .mic-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .mic-button {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+            position: relative;
+        }
+
+        .mic-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.6);
+        }
+
+        .mic-button:active {
+            transform: scale(0.95);
+        }
+
+        .mic-button.listening {
+            background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+            animation: pulse-ring 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% {
+                box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 20px rgba(245, 158, 11, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+            }
+        }
+
+        .mic-icon {
+            width: 50px;
+            height: 50px;
+            fill: white;
+        }
+
+        .text-area {
+            margin-bottom: 20px;
+        }
+
+        .text-area label {
+            display: block;
+            margin-bottom: 10px;
+            color: #b0b0b0;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .text-area textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 15px;
+            background: rgba(20, 20, 30, 0.6);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: #e0e0e0;
+            font-size: 1em;
+            font-family: inherit;
+            resize: vertical;
+            transition: border-color 0.3s ease;
+        }
+
+        .text-area textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .text-area textarea:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid rgba(239, 68, 68, 0.5);
+            color: #fca5a5;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .mic-button {
+                width: 100px;
+                height: 100px;
+            }
+
+            .mic-icon {
+                width: 40px;
+                height: 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AI Voice Assistant</h1>
+        
+        <div class="status" id="status">Ready - Say "alexa" to activate</div>
+        
+        <div class="mic-container">
+            <button class="mic-button" id="micButton" aria-label="Start/Stop Recording">
+                <svg class="mic-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                    <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="text-area">
+            <label for="userTranscript">User Transcript</label>
+            <textarea id="userTranscript" placeholder="Your spoken words will appear here..." readonly></textarea>
+        </div>
+
+        <div class="text-area">
+            <label for="aiResponse">AI Response</label>
+            <textarea id="aiResponse" placeholder="AI response will appear here..." readonly></textarea>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // CONFIGURATION
+        // ============================================
+        // Llama.cpp Server API endpoint
+        const LLAMA_API_URL = "http://localhost:8080/completion";
+        
+        // Piper TTS API endpoint
+        const PIPER_TTS_URL = "http://localhost:5001";
+        
+        // openWakeWord WebSocket endpoint
+        const WAKE_WORD_WS_URL = "ws://localhost:8765";
+        
+        // Response length limit (tokens) - lower values reduce CPU/memory usage
+        // Increased to 500 for longer responses (can be adjusted based on your RAM)
+        const MAX_PREDICT_TOKENS = 500;
+
+        // ============================================
+        // STATE MANAGEMENT
+        // ============================================
+        let recognition = null;
+        let isListening = false;
+        let isProcessing = false;
+        let wakeWordWS = null;
+        let isWakeWordActive = false;
+        let audioContext = null;
+        let mediaStream = null;
+        let wakeWordRecognition = null;
+        let isTransitioning = false; // Flag to prevent restart during transition
+        let userActivated = false; // Track if user has interacted with the page
+
+        // ============================================
+        // DOM ELEMENTS
+        // ============================================
+        const micButton = document.getElementById('micButton');
+        const statusEl = document.getElementById('status');
+        const userTranscriptEl = document.getElementById('userTranscript');
+        const aiResponseEl = document.getElementById('aiResponse');
+        const errorEl = document.getElementById('error');
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        function init() {
+            // Check for browser support
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                showError("Your browser does not support the Web Speech API. Please use Chrome, Edge, or Safari.");
+                micButton.disabled = true;
+                return;
+            }
+
+            if (!window.speechSynthesis) {
+                showError("Your browser does not support Speech Synthesis API.");
+                micButton.disabled = true;
+                return;
+            }
+
+            // Initialize Speech Recognition
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            // Set language to Indonesian for better recognition of Indonesian speech
+            recognition.lang = 'id-ID'; // Indonesian (Indonesia)
+
+            // Event handlers
+            recognition.onstart = handleRecognitionStart;
+            recognition.onresult = handleRecognitionResult;
+            recognition.onerror = handleRecognitionError;
+            recognition.onend = handleRecognitionEnd;
+
+            micButton.addEventListener('click', () => {
+                userActivated = true; // Mark user interaction
+                toggleListening();
+            });
+            
+            // Mark user interaction on any click or touch
+            document.addEventListener('click', () => { 
+                userActivated = true;
+                // Initialize speechSynthesis on first user interaction
+                // This helps avoid "not-allowed" errors
+                if (window.speechSynthesis) {
+                    try {
+                        // Warm up speechSynthesis by speaking an empty string
+                        const warmup = new SpeechSynthesisUtterance('');
+                        warmup.volume = 0;
+                        window.speechSynthesis.speak(warmup);
+                        window.speechSynthesis.cancel();
+                    } catch (e) {
+                        // Ignore warmup errors
+                    }
+                }
+            }, { once: true });
+            document.addEventListener('touchstart', () => { 
+                userActivated = true;
+                // Initialize speechSynthesis on first user interaction
+                if (window.speechSynthesis) {
+                    try {
+                        const warmup = new SpeechSynthesisUtterance('');
+                        warmup.volume = 0;
+                        window.speechSynthesis.speak(warmup);
+                        window.speechSynthesis.cancel();
+                    } catch (e) {
+                        // Ignore warmup errors
+                    }
+                }
+            }, { once: true });
+            
+            // Start wake word detection
+            startWakeWordListening();
+        }
+
+        // ============================================
+        // WAKE WORD DETECTION (openWakeWord)
+        // ============================================
+        async function startWakeWordListening() {
+            try {
+            // Use Web Speech API to continuously listen for "alexa"
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!wakeWordRecognition && SpeechRecognition) {
+                wakeWordRecognition = new SpeechRecognition();
+                wakeWordRecognition.continuous = true;
+                wakeWordRecognition.interimResults = true;
+                wakeWordRecognition.lang = 'en-US'; // Use English for "alexa"
+                
+                wakeWordRecognition.onresult = (event) => {
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const transcript = event.results[i][0].transcript.toLowerCase();
+                        
+                        // Check if "alexa" is mentioned
+                        if (transcript.includes('alexa')) {
+                            console.log('Wake word detected:', transcript);
+                            // Set flag to prevent restart during transition
+                            isTransitioning = true;
+                            isWakeWordActive = false; // Disable wake word during command
+                            
+                            try {
+                                // Stop wake word recognition first
+                                if (wakeWordRecognition) {
+                                    try {
+                                        wakeWordRecognition.stop();
+                                    } catch (e) {
+                                        // Ignore errors when stopping
+                                    }
+                                    wakeWordRecognition = null;
+                                }
+                                
+                                updateStatus('Wake word detected! Listening...', 'listening');
+                                
+                                // Wait longer to ensure wake word recognition is fully stopped
+                                // before starting command recognition
+                                setTimeout(() => {
+                                    // Double-check that wake word recognition is stopped
+                                    if (wakeWordRecognition) {
+                                        try {
+                                            wakeWordRecognition.stop();
+                                        } catch (e) {
+                                            // Ignore
+                                        }
+                                        wakeWordRecognition = null;
+                                    }
+                                    
+                                    // Now start command recognition
+                                    startListening();
+                                }, 1000); // Increased delay to 1000ms
+                            } catch (err) {
+                                console.error('Error handling wake word:', err);
+                                // Continue anyway
+                                isWakeWordActive = false;
+                                updateStatus('Wake word detected! Listening...', 'listening');
+                                setTimeout(() => {
+                                    if (wakeWordRecognition) {
+                                        try {
+                                            wakeWordRecognition.stop();
+                                        } catch (e) {
+                                            // Ignore
+                                        }
+                                        wakeWordRecognition = null;
+                                    }
+                                    startListening();
+                                }, 1000);
+                            }
+                            break;
+                        }
+                    }
+                };
+                    
+                    wakeWordRecognition.onerror = (event) => {
+                        // "aborted" and "no-speech" are not real errors - they're normal conditions
+                        if (event.error === 'aborted') {
+                            // Don't log or restart on aborted - it's normal during transitions
+                            return;
+                        }
+                        if (event.error === 'no-speech') {
+                            // "no-speech" is normal when no speech is detected - don't log or restart
+                            return;
+                        }
+                        console.error('Wake word recognition error:', event.error);
+                        // Don't restart on certain errors or during transitions
+                        if (event.error === 'not-allowed' || isTransitioning) {
+                            return;
+                        }
+                        // Restart after other errors (only if not transitioning)
+                        if (isWakeWordActive && !isListening && !isProcessing && !isTransitioning) {
+                            setTimeout(() => {
+                                if (!isTransitioning) {
+                                    wakeWordRecognition = null; // Reset
+                                    startWakeWordListening();
+                                }
+                            }, 1000);
+                        }
+                    };
+                    
+                    wakeWordRecognition.onend = () => {
+                        // Don't restart if transitioning or if wake word is not active
+                        if (isTransitioning || !isWakeWordActive || isListening || isProcessing) {
+                            return;
+                        }
+                        // Restart wake word listening after a delay
+                        setTimeout(() => {
+                            // Double-check conditions before restarting
+                            if (!isTransitioning && isWakeWordActive && !isListening && !isProcessing) {
+                                wakeWordRecognition = null; // Reset before restart
+                                startWakeWordListening();
+                            }
+                        }, 500);
+                    };
+                    
+                    wakeWordRecognition.start();
+                    console.log('Wake word listening started');
+                }
+            } catch (error) {
+                console.error('Error starting wake word listening:', error);
+            }
+        }
+
+        function stopWakeWordListening() {
+            isTransitioning = true; // Set flag to prevent restart
+            if (wakeWordRecognition) {
+                wakeWordRecognition.stop();
+                wakeWordRecognition = null;
+            }
+            isWakeWordActive = false;
+        }
+
+        // ============================================
+        // ERROR HANDLING
+        // ============================================
+        function showError(message) {
+            errorEl.textContent = message;
+            errorEl.classList.add('show');
+            setTimeout(() => {
+                errorEl.classList.remove('show');
+            }, 5000);
+        }
+
+        function hideError() {
+            errorEl.classList.remove('show');
+        }
+
+        // ============================================
+        // STATUS MANAGEMENT
+        // ============================================
+        function updateStatus(text, className = '') {
+            statusEl.textContent = text;
+            statusEl.className = 'status ' + className;
+        }
+
+        // ============================================
+        // SPEECH RECOGNITION HANDLERS
+        // ============================================
+        function toggleListening() {
+            if (isProcessing) {
+                return; // Don't allow new recordings while processing
+            }
+
+            if (isListening) {
+                stopListening();
+            } else {
+                startListening();
+            }
+        }
+
+        function startListening() {
+            try {
+                // Make sure wake word recognition is completely stopped first
+                if (wakeWordRecognition) {
+                    try {
+                        wakeWordRecognition.stop();
+                    } catch (e) {
+                        // Ignore errors when stopping
+                    }
+                    wakeWordRecognition = null;
+                }
+                
+                // Wait a bit to ensure wake word recognition is fully stopped
+                setTimeout(() => {
+                    try {
+                        // Double-check that recognition is not already running
+                        if (isListening) {
+                            console.log('Recognition already running, skipping start');
+                            return;
+                        }
+                        
+                        hideError();
+                        userTranscriptEl.value = '';
+                        aiResponseEl.value = '';
+                        recognition.start();
+                    } catch (error) {
+                        console.error('Error starting recognition:', error);
+                        showError("Failed to start speech recognition: " + error.message);
+                        // Restart wake word listening if command recognition fails
+                        isTransitioning = false;
+                        isWakeWordActive = true;
+                        startWakeWordListening();
+                    }
+                }, 300); // Wait 300ms to ensure wake word recognition is stopped
+            } catch (error) {
+                console.error('Error in startListening:', error);
+                showError("Failed to start speech recognition: " + error.message);
+                // Restart wake word listening if command recognition fails
+                isTransitioning = false;
+                isWakeWordActive = true;
+                startWakeWordListening();
+            }
+        }
+
+        function stopListening() {
+            if (recognition && isListening) {
+                try {
+                    recognition.stop();
+                } catch (e) {
+                    // Ignore errors when stopping
+                    console.log('Error stopping recognition (ignored):', e);
+                }
+            }
+        }
+
+        function handleRecognitionStart() {
+            isListening = true;
+            micButton.classList.add('listening');
+            updateStatus('Listening...', 'listening');
+        }
+
+        function handleRecognitionResult(event) {
+            const transcript = event.results[0][0].transcript;
+            userTranscriptEl.value = transcript;
+            userActivated = true; // Mark user interaction (speech recognition is user interaction)
+        }
+
+        function handleRecognitionError(event) {
+            console.error('Recognition error:', event.error);
+            
+            // "aborted" is not a real error - it just means recognition was stopped
+            if (event.error === 'aborted') {
+                console.log('Recognition aborted (this is normal when switching from wake word to command)');
+                return; // Don't show error or reset, just return
+            }
+            
+            let errorMessage = "Speech recognition error: ";
+            switch(event.error) {
+                case 'no-speech':
+                    errorMessage += "No speech detected. Please try again.";
+                    break;
+                case 'audio-capture':
+                    errorMessage += "No microphone found. Please check your microphone.";
+                    break;
+                case 'not-allowed':
+                    errorMessage += "Microphone permission denied. Please allow microphone access.";
+                    break;
+                default:
+                    errorMessage += event.error;
+            }
+            
+            showError(errorMessage);
+            resetToReady();
+        }
+
+        function handleRecognitionEnd() {
+            isListening = false;
+            micButton.classList.remove('listening');
+            
+            // If we have a transcript, process it
+            const transcript = userTranscriptEl.value.trim();
+            if (transcript && !isProcessing) {
+                // Process transcript immediately while still in user interaction context
+                // This ensures TTS can be triggered in the same interaction context
+                processTranscript(transcript);
+            } else {
+                resetToReady();
+                // Always restart wake word listening after command recognition ends
+                isTransitioning = false; // Clear transition flag
+                if (isWakeWordActive) {
+                    setTimeout(() => {
+                        wakeWordRecognition = null; // Reset before restart
+                        startWakeWordListening();
+                    }, 500);
+                }
+            }
+        }
+
+        // ============================================
+        // PROMPT FORMATTING (ChatML/Qwen Format)
+        // ============================================
+        function formatPrompt(userInput) {
+            // ChatML/Qwen format dengan instruksi eksplisit untuk bahasa Indonesia
+            // Selalu minta respons dalam bahasa Indonesia untuk memastikan model merespons dalam bahasa Indonesia
+            return `<|im_start|>user\n${userInput}\n\nJawablah dengan singkat dan jelas dalam bahasa Indonesia.<|im_end|>\n<|im_start|>assistant\n`;
+        }
+
+        // ============================================
+        // AI PROCESSING (Llama.cpp Server)
+        // ============================================
+        async function processTranscript(transcript) {
+            isProcessing = true;
+            updateStatus('Thinking...', 'thinking');
+            aiResponseEl.value = '';
+
+            try {
+                // Format the prompt using ChatML/Qwen template
+                const formattedPrompt = formatPrompt(transcript);
+
+                const response = await fetch(LLAMA_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        prompt: formattedPrompt,
+                        n_predict: MAX_PREDICT_TOKENS,
+                        stop: ["<|im_end|>"],
+                        stream: false
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Llama.cpp returns { "content": "..." }
+                const aiText = data.content || data.text || "No response received.";
+
+                // Clean up any remaining stop tokens
+                const cleanedText = aiText.replace(/<\|im_end\|>/g, '').trim();
+
+                aiResponseEl.value = cleanedText;
+                updateStatus('Speaking', 'speaking');
+                
+                // Speak the response
+                speakText(cleanedText);
+
+            } catch (error) {
+                console.error('Error calling Llama.cpp API:', error);
+                
+                let errorMessage = "Failed to get AI response: ";
+                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                    errorMessage += "Cannot connect to Llama.cpp server. Make sure it's running on localhost:8080";
+                } else {
+                    errorMessage += error.message;
+                }
+                
+                showError(errorMessage);
+                resetToReady();
+            } finally {
+                isProcessing = false;
+                // Clear transition flag after processing is done
+                if (!isListening) {
+                    isTransitioning = false;
+                }
+            }
+        }
+
+        // ============================================
+        // TEXT-TO-SPEECH (Piper TTS)
+        // ============================================
+        async function speakText(text) {
+            let audioUrlToRevoke = null; // Track blob URL for cleanup
+            
+            try {
+                console.log('Using Piper TTS for:', text.substring(0, 50) + '...');
+                // Use Piper TTS API
+                const response = await fetch(PIPER_TTS_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Piper TTS API error:', response.status, errorText);
+                    throw new Error(`TTS API error: ${response.status} - ${errorText}`);
+                }
+
+                // Get audio data
+                const audioBlob = await response.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
+                audioUrlToRevoke = audioUrl; // Store for cleanup
+                const audio = new Audio(audioUrl);
+                
+                // Preload audio to ensure it's ready
+                audio.preload = 'auto';
+
+                audio.onended = () => {
+                    if (audioUrlToRevoke) {
+                        URL.revokeObjectURL(audioUrlToRevoke);
+                        audioUrlToRevoke = null;
+                    }
+                    updateStatus('Ready', 'active');
+                    // Restart wake word listening after speaking
+                    isTransitioning = false; // Clear transition flag
+                    isWakeWordActive = true; // Ensure wake word is active
+                    setTimeout(() => {
+                        startWakeWordListening();
+                    }, 500);
+                };
+
+                // Track if audio failed to load
+                let audioLoadFailed = false;
+                let audioLoadResolve = null;
+                let audioLoadReject = null;
+                
+                audio.onerror = (event) => {
+                    // Handle audio errors - mark as failed
+                    console.warn('Audio playback error, will use browser TTS fallback');
+                    audioLoadFailed = true;
+                    if (audioUrlToRevoke) {
+                        URL.revokeObjectURL(audioUrlToRevoke);
+                        audioUrlToRevoke = null;
+                    }
+                    // Reject the load promise if it exists
+                    if (audioLoadReject) {
+                        audioLoadReject(new Error('Audio failed to load'));
+                    }
+                };
+
+                updateStatus('Speaking', 'speaking');
+                
+                // Wait for audio to be ready before playing
+                try {
+                    await new Promise((resolve, reject) => {
+                        audioLoadResolve = resolve;
+                        audioLoadReject = reject;
+                        
+                        if (audioLoadFailed) {
+                            reject(new Error('Audio failed to load'));
+                            return;
+                        }
+                        
+                        if (audio.readyState >= 3) { // HAVE_FUTURE_DATA or HAVE_ENOUGH_DATA
+                            resolve();
+                            return;
+                        }
+                        
+                        const timeout = setTimeout(() => {
+                            if (audioLoadFailed) {
+                                reject(new Error('Audio failed to load'));
+                            } else if (audio.readyState >= 2) { // HAVE_CURRENT_DATA
+                                resolve();
+                            } else {
+                                reject(new Error('Audio load timeout'));
+                            }
+                        }, 3000);
+                        
+                        audio.oncanplaythrough = () => {
+                            clearTimeout(timeout);
+                            if (!audioLoadFailed) {
+                                resolve();
+                            }
+                        };
+                    });
+                    
+                    // Check if audio failed during load
+                    if (audioLoadFailed) {
+                        throw new Error('Audio failed to load');
+                    }
+                    
+                    // Try to play audio - handle autoplay policy
+                    // Set volume before playing
+                    audio.volume = 1.0;
+                    
+                    // Play with promise to catch autoplay errors
+                    try {
+                        const playPromise = audio.play();
+                        
+                        if (playPromise !== undefined) {
+                            await playPromise.catch(error => {
+                                // If autoplay is blocked, fall back to browser TTS
+                                console.warn('Audio play blocked, using browser TTS:', error.message);
+                                throw error; // Re-throw to trigger fallback
+                            });
+                        }
+                        
+                        // Verify audio is actually playing
+                        await new Promise((resolve, reject) => {
+                            const checkInterval = setInterval(() => {
+                                if (audioLoadFailed) {
+                                    clearInterval(checkInterval);
+                                    reject(new Error('Audio failed during playback'));
+                                } else if (!audio.paused) {
+                                    clearInterval(checkInterval);
+                                    resolve();
+                                }
+                            }, 100);
+                            
+                            // Timeout after 1 second
+                            setTimeout(() => {
+                                clearInterval(checkInterval);
+                                if (audio.paused && !audioLoadFailed) {
+                                    reject(new Error('Audio did not start playing'));
+                                } else {
+                                    resolve();
+                                }
+                            }, 1000);
+                        });
+                    } catch (playError) {
+                        // If play fails, fall back to browser TTS
+                        throw playError;
+                    }
+                } catch (error) {
+                    // Fall back to browser TTS
+                    // Clean up blob URL if needed
+                    if (audioUrlToRevoke) {
+                        URL.revokeObjectURL(audioUrlToRevoke);
+                        audioUrlToRevoke = null;
+                    }
+                    throw error; // Re-throw to trigger fallback
+                }
+
+            } catch (error) {
+                // Fall back to browser TTS - this is expected when autoplay is blocked
+                
+                // Revoke any blob URLs that might still be open
+                try {
+                    if (typeof audioUrlToRevoke !== 'undefined' && audioUrlToRevoke) {
+                        URL.revokeObjectURL(audioUrlToRevoke);
+                        audioUrlToRevoke = null;
+                    }
+                } catch (e) {
+                    // Ignore
+                }
+                
+                // Use browser TTS as fallback - this should always work
+                // Browser TTS doesn't have autoplay restrictions like HTML5 Audio
+                try {
+                    // Check if speechSynthesis is available
+                    if (!window.speechSynthesis) {
+                        throw new Error('SpeechSynthesis not available');
+                    }
+                    
+                    // Cancel any ongoing speech synthesis
+                    window.speechSynthesis.cancel();
+                    
+                    // Wait a bit to ensure cancellation is complete
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = 'id-ID';
+                    utterance.rate = 1.0;
+                    utterance.pitch = 1.0;
+                    utterance.volume = 1.0;
+                    
+                    let utteranceEnded = false;
+                    let utteranceStarted = false;
+                    
+                    utterance.onstart = () => {
+                        utteranceStarted = true;
+                        clearTimeout(fallbackTimeout);
+                    };
+                    
+                    utterance.onend = () => {
+                        if (utteranceEnded) return; // Prevent multiple calls
+                        utteranceEnded = true;
+                        clearTimeout(fallbackTimeout);
+                        updateStatus('Ready', 'active');
+                        // Restart wake word listening after speaking
+                        isTransitioning = false; // Clear transition flag
+                        isWakeWordActive = true; // Ensure wake word is active
+                        setTimeout(() => {
+                            wakeWordRecognition = null;
+                            startWakeWordListening();
+                        }, 500);
+                    };
+                    
+                    utterance.onerror = (event) => {
+                        if (utteranceEnded) return; // Prevent multiple calls
+                        
+                        // "not-allowed" error usually means speechSynthesis requires user interaction
+                        // In some browsers, this error appears but TTS still works
+                        // So we'll wait longer to see if it actually starts
+                        if (event.error === 'not-allowed') {
+                            // Don't mark as ended immediately - wait to see if it starts
+                            // Sometimes TTS still works despite this error
+                            setTimeout(() => {
+                                // If it still hasn't started after 3 seconds, treat as failed
+                                if (!utteranceStarted && !utteranceEnded) {
+                                    console.warn('Browser TTS not-allowed and did not start after 3 seconds');
+                                    utteranceEnded = true;
+                                    clearTimeout(fallbackTimeout);
+                                    updateStatus('Ready', 'active');
+                                    isTransitioning = false;
+                                    isWakeWordActive = true;
+                                    setTimeout(() => {
+                                        wakeWordRecognition = null;
+                                        startWakeWordListening();
+                                    }, 500);
+                                }
+                            }, 3000); // Increased wait time to 3 seconds
+                            return;
+                        }
+                        
+                        // For other errors, handle immediately
+                        console.warn('Browser TTS error:', event.error);
+                        utteranceEnded = true;
+                        clearTimeout(fallbackTimeout);
+                        updateStatus('Ready', 'active');
+                        isTransitioning = false; // Clear transition flag
+                        isWakeWordActive = true; // Ensure wake word is active
+                        setTimeout(() => {
+                            wakeWordRecognition = null;
+                            startWakeWordListening();
+                        }, 500);
+                    };
+                    
+                    // Fallback timeout - if TTS doesn't complete within 10 seconds, reset
+                    const fallbackTimeout = setTimeout(() => {
+                        if (!utteranceEnded) {
+                            console.warn('Browser TTS timeout, resetting to ready');
+                            utteranceEnded = true;
+                            window.speechSynthesis.cancel();
+                            updateStatus('Ready', 'active');
+                            isTransitioning = false;
+                            isWakeWordActive = true;
+                            setTimeout(() => {
+                                wakeWordRecognition = null;
+                                startWakeWordListening();
+                            }, 500);
+                        }
+                    }, 10000);
+                    
+                    updateStatus('Speaking (browser TTS)', 'speaking');
+                    
+                    // Try to speak - browser TTS should work even without strict user interaction
+                    try {
+                        // Some browsers require speechSynthesis to be "warmed up" first
+                        // Try to speak a short empty string first to activate it
+                        const warmupUtterance = new SpeechSynthesisUtterance('');
+                        warmupUtterance.volume = 0;
+                        window.speechSynthesis.speak(warmupUtterance);
+                        window.speechSynthesis.cancel(); // Cancel immediately
+                        
+                        // Wait a bit then speak the actual text
+                        setTimeout(() => {
+                            try {
+                                window.speechSynthesis.speak(utterance);
+                            } catch (e) {
+                                console.warn('Error speaking after warmup:', e);
+                            }
+                        }, 50);
+                        
+                        // Check if speech started within 2 seconds
+                        setTimeout(() => {
+                            if (!utteranceStarted && !utteranceEnded) {
+                                // Try one more time - sometimes it needs a retry
+                                try {
+                                    window.speechSynthesis.cancel();
+                                    setTimeout(() => {
+                                        if (!utteranceEnded) {
+                                            window.speechSynthesis.speak(utterance);
+                                        }
+                                    }, 200);
+                                } catch (e) {
+                                    // If it still fails, wait a bit more before giving up
+                                    // The timeout handler will eventually reset if it doesn't work
+                                    console.warn('Browser TTS retry failed, but waiting for timeout...');
+                                }
+                            }
+                        }, 2000); // Increased to 2 seconds
+                    } catch (speakError) {
+                        console.warn('Error calling speechSynthesis.speak:', speakError);
+                        // If it fails completely, reset
+                        utteranceEnded = true;
+                        clearTimeout(fallbackTimeout);
+                        updateStatus('Ready', 'active');
+                        isTransitioning = false;
+                        isWakeWordActive = true;
+                        setTimeout(() => {
+                            wakeWordRecognition = null;
+                            startWakeWordListening();
+                        }, 500);
+                    }
+                } catch (browserTtsError) {
+                    // If browser TTS also fails, just reset to ready state
+                    console.warn('Browser TTS initialization failed:', browserTtsError);
+                    updateStatus('Ready', 'active');
+                    isTransitioning = false;
+                    isWakeWordActive = true; // Ensure wake word is active
+                    setTimeout(() => {
+                        wakeWordRecognition = null;
+                        startWakeWordListening();
+                    }, 500);
+                }
+            }
+        }
+
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+        function resetToReady() {
+            isListening = false;
+            isProcessing = false;
+            isTransitioning = false; // Clear transition flag
+            micButton.classList.remove('listening');
+            updateStatus('Ready', 'active');
+        }
+
+        // ============================================
+        // START APPLICATION
+        // ============================================
+        init();
+        updateStatus('Ready - Say "alexa" to activate', 'active');
+    </script>
+</body>
+</html>

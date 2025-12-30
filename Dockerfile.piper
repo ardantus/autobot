@@ -1,0 +1,54 @@
+FROM python:3.11-slim
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    wget \
+    curl \
+    espeak-ng \
+    libespeak-ng1 \
+    libespeak-ng-dev \
+    libonnxruntime-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+RUN pip install --no-cache-dir \
+    onnxruntime \
+    numpy \
+    requests \
+    scikit-build \
+    cmake \
+    pybind11
+
+# Clone and install Piper TTS
+WORKDIR /app
+RUN git clone https://github.com/OHF-Voice/piper1-gpl.git piper && \
+    cd piper && \
+    pip install --no-cache-dir -e . && \
+    python3 setup.py build_ext --inplace && \
+    # Find and copy espeakbridge.so to src/piper (multiple attempts)
+    (find _skbuild -name "espeakbridge.so" -type f -exec cp {} src/piper/ \; || true) && \
+    (find _skbuild -path "*/cmake-install/src/piper/espeakbridge.so" -exec cp {} src/piper/ \; || true) && \
+    # Verify and keep a backup reference
+    if [ -f src/piper/espeakbridge.so ]; then \
+        echo "espeakbridge.so found and copied"; \
+        ls -lh src/piper/espeakbridge.so; \
+        # Keep a copy in a persistent location
+        mkdir -p /app/lib && cp src/piper/espeakbridge.so /app/lib/; \
+    else \
+        echo "WARNING: espeakbridge.so not found after build"; \
+        find . -name "*.so" -type f | head -5; \
+    fi
+
+# Download Indonesian voice model
+# Download will be done at runtime if not found, or use piper download command
+RUN mkdir -p /app/models
+
+# Copy server script
+COPY piper_server.py /app/server.py
+RUN chmod +x /app/server.py
+
+EXPOSE 5000
+
+CMD ["python3", "/app/server.py"]
