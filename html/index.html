@@ -165,6 +165,35 @@
             cursor: not-allowed;
         }
 
+        #sendButton {
+            padding: 15px 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        #sendButton:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        }
+
+        #sendButton:active {
+            transform: translateY(0);
+        }
+
+        #sendButton:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .error {
             background: rgba(239, 68, 68, 0.2);
             border: 2px solid rgba(239, 68, 68, 0.5);
@@ -219,7 +248,10 @@
 
         <div class="text-area">
             <label for="userTranscript">User Transcript</label>
-            <textarea id="userTranscript" placeholder="Your spoken words will appear here..." readonly></textarea>
+            <div style="display: flex; gap: 10px; align-items: flex-end;">
+                <textarea id="userTranscript" placeholder="Ketik pesan Anda di sini atau gunakan suara..." style="flex: 1;"></textarea>
+                <button id="sendButton">Kirim</button>
+            </div>
         </div>
 
         <div class="text-area">
@@ -232,14 +264,20 @@
         // ============================================
         // CONFIGURATION
         // ============================================
-        // Llama.cpp Server API endpoint
-        const LLAMA_API_URL = "http://localhost:8080/completion";
+        // Get current protocol and host for dynamic URL construction
+        const protocol = window.location.protocol;
+        const host = window.location.host;
         
-        // Piper TTS API endpoint
-        const PIPER_TTS_URL = "http://localhost:5001";
+        // Llama.cpp Server API endpoint (via nginx proxy)
+        const LLAMA_API_URL = "/completion";
         
-        // openWakeWord WebSocket endpoint
-        const WAKE_WORD_WS_URL = "ws://localhost:8765";
+        // Piper TTS API endpoint (via nginx proxy)
+        const PIPER_TTS_URL = "/tts";
+        
+        // openWakeWord WebSocket endpoint (via nginx proxy)
+        // Use wss:// for HTTPS, ws:// for HTTP
+        const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
+        const WAKE_WORD_WS_URL = `${wsProtocol}//${host}/ws`;
         
         // Response length limit (tokens) - lower values reduce CPU/memory usage
         // Increased to 500 for longer responses (can be adjusted based on your RAM)
@@ -267,6 +305,7 @@
         const userTranscriptEl = document.getElementById('userTranscript');
         const aiResponseEl = document.getElementById('aiResponse');
         const errorEl = document.getElementById('error');
+        const sendButton = document.getElementById('sendButton');
 
         // ============================================
         // INITIALIZATION
@@ -303,6 +342,15 @@
             micButton.addEventListener('click', () => {
                 userActivated = true; // Mark user interaction
                 toggleListening();
+            });
+            
+            // Send button and Enter key handler for text input
+            sendButton.addEventListener('click', sendTextMessage);
+            userTranscriptEl.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendTextMessage();
+                }
             });
             
             // Mark user interaction on any click or touch
@@ -697,6 +745,7 @@
                 resetToReady();
             } finally {
                 isProcessing = false;
+                sendButton.disabled = false; // Re-enable send button
                 // Clear transition flag after processing is done
                 if (!isListening) {
                     isTransitioning = false;
@@ -1039,6 +1088,35 @@
         }
 
         // ============================================
+        // TEXT MESSAGE HANDLING
+        // ============================================
+        function sendTextMessage() {
+            const text = userTranscriptEl.value.trim();
+            if (!text) {
+                return; // Don't send empty messages
+            }
+            
+            if (isProcessing) {
+                showError("Tunggu hingga permintaan saat ini selesai.");
+                return;
+            }
+            
+            // Stop any ongoing listening
+            if (isListening) {
+                stopListening();
+            }
+            
+            // Disable send button and clear textarea
+            sendButton.disabled = true;
+            const messageText = text;
+            userTranscriptEl.value = ''; // Clear input after sending
+            
+            // Process the text message
+            userActivated = true; // Mark user interaction
+            processTranscript(messageText);
+        }
+
+        // ============================================
         // UTILITY FUNCTIONS
         // ============================================
         function resetToReady() {
@@ -1046,6 +1124,7 @@
             isProcessing = false;
             isTransitioning = false; // Clear transition flag
             micButton.classList.remove('listening');
+            sendButton.disabled = false; // Re-enable send button
             updateStatus('Ready', 'active');
         }
 

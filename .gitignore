@@ -39,3 +39,9 @@ logs/
 *.temp
 *.bak
 
+# SSL Certificates (self-signed)
+certs/*.pem
+certs/*.key
+certs/*.crt
+!certs/.gitkeep
+

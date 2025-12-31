@@ -19,7 +19,7 @@ services:
     # Alternatif: qwen2.5-1.5b-instruct-q4_k_m.gguf (lebih baik, ~1GB)
     # 
     # Link download: Lihat README.md bagian "Download Model AI"
-    command: ["./bin/server", "-m", "/models/qwen2.5-0.5b-instruct-q4_k_m.gguf", "-c", "512", "--host", "0.0.0.0", "--port", "8080"]
+    command: ["./bin/server", "-m", "/models/qwen2.5-3b-instruct-q4_k_m.gguf", "-c", "512", "--host", "0.0.0.0", "--port", "8080"]
     working_dir: /app/build
     restart: always
 
@@ -49,8 +49,11 @@ services:
     image: nginx:alpine
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./html:/usr/share/nginx/html
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./certs:/etc/nginx/ssl
     restart: always
     depends_on:
       - chat-engine

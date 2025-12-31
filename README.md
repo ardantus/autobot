@@ -88,12 +88,35 @@ docker-compose build
 - Build pertama kali mungkin memakan waktu beberapa menit karena perlu mengcompile llama.cpp dari source
 - Pastikan model sudah ada di folder `models/` sebelum build
 
-### 5. Jalankan dengan Docker Compose
+### 5. Build Docker Image
+
+Setelah model sudah didownload, build Docker image:
 
 ```bash
-# Build services (jika belum)
 docker-compose build
+```
 
+**Catatan**: 
+- Build pertama kali mungkin memakan waktu beberapa menit karena perlu mengcompile llama.cpp dari source
+- Pastikan model sudah ada di folder `models/` sebelum build
+
+### 6. Generate SSL Certificate untuk HTTPS
+
+Aplikasi mendukung HTTPS dengan self-signed certificate. Generate certificate terlebih dahulu:
+
+```bash
+# Generate self-signed SSL certificate
+./generate-cert.sh
+```
+
+**Catatan**: 
+- Certificate akan dibuat di folder `certs/`
+- Ini adalah self-signed certificate, browser akan menampilkan peringatan keamanan
+- Klik "Advanced" dan "Proceed to localhost" untuk melanjutkan
+
+### 7. Jalankan dengan Docker Compose
+
+```bash
 # Start services
 docker-compose up -d
 
@@ -104,14 +127,17 @@ docker-compose ps
 docker-compose logs -f chat-engine
 ```
 
-**Catatan**: Pastikan model sudah ada di folder `models/` sebelum menjalankan `docker-compose up`!
-
-### 6. Akses Aplikasi
+### 8. Akses Aplikasi
 
 Buka browser dan navigasi ke:
 ```
-http://localhost
+https://localhost
 ```
+
+**Catatan**: 
+- HTTP (port 80) akan otomatis di-redirect ke HTTPS (port 443)
+- Jika browser menampilkan peringatan keamanan, klik "Advanced" dan "Proceed to localhost"
+- Chrome dan browser modern akan otomatis menggunakan HTTPS
 
 ## 📖 Cara Penggunaan
 
@@ -223,6 +249,23 @@ const LLAMA_API_URL = "http://localhost:8080/completion";
 2. Cek izin mikrofon di browser settings
 3. Pastikan mikrofon terhubung dan berfungsi
 4. Coba refresh halaman
+
+### Error: "SSL Certificate Error" atau "Your connection is not private"
+
+**Solusi:**
+1. Pastikan certificate sudah di-generate: `./generate-cert.sh`
+2. Pastikan file `certs/cert.pem` dan `certs/key.pem` ada
+3. Restart nginx container: `docker-compose restart web-server`
+4. Di browser, klik "Advanced" → "Proceed to localhost (unsafe)" untuk self-signed certificate
+5. Untuk Chrome, Anda juga bisa mengetik `thisisunsafe` saat halaman error muncul
+
+### HTTPS Tidak Bekerja / Port 443 Tidak Bisa Diakses
+
+**Solusi:**
+1. Pastikan port 443 tidak digunakan aplikasi lain: `sudo lsof -i :443`
+2. Cek nginx logs: `docker-compose logs web-server`
+3. Pastikan certificate files ada dan readable: `ls -la certs/`
+4. Restart web-server: `docker-compose restart web-server`
 
 ## 🛠️ Development
 
